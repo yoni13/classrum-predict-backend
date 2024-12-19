@@ -1,5 +1,4 @@
-fastapi
-slowapi
-python-multipart
-uvicorn
+flask
+flask-limiter
+gunicorn
 google-generativeai
