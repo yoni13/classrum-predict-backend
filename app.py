@@ -9,9 +9,11 @@ limiter = Limiter(app)
 
 import google.generativeai as genai
 from google.ai.generativelanguage_v1beta.types import content
+import os
 
-# genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-genai.configure(api_key="AIzaSyBI9Ztd7cGHRuZ_YbvcdwXOyjOB17henaY")
+
+genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+#genai.configure(api_key="Roatated")
 
 # Create the model
 generation_config = {
