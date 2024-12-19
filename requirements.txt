@@ -2,3 +2,4 @@ fastapi
 slowapi
 python-multipart
 uvicorn
+google-generativeai
