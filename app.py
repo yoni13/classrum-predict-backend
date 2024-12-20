@@ -69,16 +69,6 @@ class HomeworkRequest(BaseModel):
 @app.route("/get-homework-type", methods=["POST"])
 @limiter.limit("1 per second")
 def get_homework_type():
-
-  # json_data = request.json
-  # print(json_data)
-
-  # if not json_data["line_data"] or not json_data["courses"]:
-  #   return abort(400)
-
-  # datas = str(json_data["line_data"]).split("\n")
-  # courses = str(json_data["courses"])
-  
   try:
     input_data = HomeworkRequest(line_data=request.json["line_data"], courses=request.json["courses"])
     datas = input_data.line_data.split("\n")
@@ -89,7 +79,7 @@ def get_homework_type():
   for i in range(len(datas)):
     data = datas[i].strip()
 
-    if data == "":
+    if data == "" or len(data) > 100:
       datas[i] = "None"
       continue
 
