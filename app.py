@@ -12,7 +12,7 @@ from google.ai.generativelanguage_v1beta.types import content
 import os
 
 
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
 #genai.configure(api_key="Roatated")
 
 # Create the model
@@ -44,6 +44,7 @@ def request_llm(data, courses):
         "input": data,
         "course": courses
     }
+
     response = json.loads(chat_session.send_message(str(request_json)).text)["course_type"]
     print(response)
 
