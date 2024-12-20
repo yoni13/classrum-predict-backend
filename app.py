@@ -4,6 +4,7 @@ import json
 import google.generativeai as genai
 from google.ai.generativelanguage_v1beta.types import content
 import os
+from pydantic import BaseModel, ValidationError
 
 app = Flask(__name__)
 
@@ -28,7 +29,7 @@ genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
 
 # Create the model
 generation_config = {
-  "temperature": 1,
+  "temperature": 0.2, # to control the randomness of the output
   "top_p": 0.95,
   "top_k": 40,
   "max_output_tokens": 8192,
@@ -56,24 +57,35 @@ def request_llm(data, courses):
       "course": courses
   }
 
-  response = json.loads(chat_session.send_message(str(request_json)).text)["course_type"]
-
+  response = json.loads(chat_session.send_message(str(request_json)).text).get("course_type","None")
+  if response not in courses:
+    response = "None"
   return response
+
+class HomeworkRequest(BaseModel):
+    line_data: str
+    courses: list[str]
 
 @app.route("/get-homework-type", methods=["POST"])
 @limiter.limit("1 per second")
 def get_homework_type():
 
-  # Return None if no data is provided
-  json_data = request.json
-  print(json_data)
+  # json_data = request.json
+  # print(json_data)
 
-  if not json_data["line_data"] or not json_data["courses"]:
+  # if not json_data["line_data"] or not json_data["courses"]:
+  #   return abort(400)
+
+  # datas = str(json_data["line_data"]).split("\n")
+  # courses = str(json_data["courses"])
+  
+  try:
+    input_data = HomeworkRequest(line_data=request.json["line_data"], courses=request.json["courses"])
+    datas = input_data.line_data.split("\n")
+    courses = input_data.courses
+  except ValidationError as e:
     return abort(400)
 
-  datas = str(json_data["line_data"]).split("\n")
-  courses = str(json_data["courses"])
-  
   for i in range(len(datas)):
     data = datas[i].strip()
 
