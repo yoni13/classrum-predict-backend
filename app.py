@@ -1,7 +1,9 @@
-from flask import Flask, request, abort
-# flask limiter
+from flask import Flask, request, abort, jsonify
 from flask_limiter import Limiter
 import json
+import google.generativeai as genai
+from google.ai.generativelanguage_v1beta.types import content
+import os
 
 app = Flask(__name__)
 
@@ -22,13 +24,7 @@ limiter = Limiter(
 )
 
 
-import google.generativeai as genai
-from google.ai.generativelanguage_v1beta.types import content
-import os
-
-
 genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
-#genai.configure(api_key="Roatated")
 
 # Create the model
 generation_config = {
@@ -54,31 +50,39 @@ model = genai.GenerativeModel(
 )
 
 def request_llm(data, courses):
-    chat_session = model.start_chat(history=[],)
-    request_json = {
-        "input": data,
-        "course": courses
-    }
+  chat_session = model.start_chat(history=[],)
+  request_json = {
+      "input": data,
+      "course": courses
+  }
 
-    response = json.loads(chat_session.send_message(str(request_json)).text)["course_type"]
-    print(response)
+  response = json.loads(chat_session.send_message(str(request_json)).text)["course_type"]
 
-    return response
+  return response
 
 @app.route("/get-homework-type", methods=["POST"])
 @limiter.limit("1 per second")
 def get_homework_type():
-    if not request.form['line_data'] or not request.form['courses'] or request.form['line_data'].strip() == "" or request.form['courses'].strip() == "":
-        return abort(400)
-    
-    datas = str(request.form['line_data'])
-    courses = str(request.form['courses'])
 
-    # get llm per line
-    datas = datas.split("\n")
-    for i in range(len(datas)):
-        datas[i] = request_llm(datas[i], courses.split(","))
-    return {"result": datas}
+  # Return None if no data is provided
+  json_data = request.json
+  print(json_data)
+
+  if not json_data["line_data"] or not json_data["courses"]:
+    return abort(400)
+
+  datas = json_data["line_data"].split("\n")
+  courses = json_data["courses"]
+  
+  for i in range(len(datas)):
+    data = datas[i].strip()
+
+    if data == "":
+      datas[i] = "None"
+      continue
+
+    datas[i] = request_llm(data, courses)
+  return jsonify({"result": datas})
     
 
 
