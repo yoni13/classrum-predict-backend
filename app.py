@@ -4,7 +4,22 @@ from flask_limiter import Limiter
 import json
 
 app = Flask(__name__)
-limiter = Limiter(app)
+
+def get_remote_address():
+    '''
+    Get real user ip instead of localhost since we are using traefik
+    '''
+    if request.headers.get('cf-connecting-ip'):
+        return request.headers.get('cf-connecting-ip')
+    else:
+        return request.remote_addr
+    
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],
+    storage_uri="memory://",
+)
 
 
 import google.generativeai as genai
