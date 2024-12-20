@@ -71,8 +71,8 @@ def get_homework_type():
   if not json_data["line_data"] or not json_data["courses"]:
     return abort(400)
 
-  datas = json_data["line_data"].split("\n")
-  courses = json_data["courses"]
+  datas = str(json_data["line_data"]).split("\n")
+  courses = str(json_data["courses"])
   
   for i in range(len(datas)):
     data = datas[i].strip()
