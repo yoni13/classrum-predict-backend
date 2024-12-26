@@ -71,20 +71,30 @@ class HomeworkRequest(BaseModel):
 def get_homework_type():
   try:
     input_data = HomeworkRequest(line_data=request.json["line_data"], courses=request.json["courses"])
-    datas = input_data.line_data.split("\n")
+    hws = input_data.line_data.split("\n")
     courses = input_data.courses
   except ValidationError as e:
     return abort(400)
+  
+  course_type = []
+  result_box = ''
 
-  for i in range(len(datas)):
-    data = datas[i].strip()
+  for i in range(len(hws)):
+    data = hws[i].strip()
 
     if data == "" or len(data) > 100:
-      datas[i] = "None"
+      result_box += data + " " + "None" 
+      if i != len(hws) - 1:
+        result_box += "\n"
       continue
 
-    datas[i] = request_llm(data, courses)
-  return jsonify({"result": datas})
+    resp = request_llm(data, courses)
+    course_type.append(resp)
+    #hws[i] = data + " " + resp
+    result_box += data + " " + resp
+    if i != len(hws) - 1:
+      result_box += "\n"
+  return jsonify({"result": result_box,"course_type": course_type})
     
 
 
