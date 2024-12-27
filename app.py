@@ -76,15 +76,21 @@ def get_homework_type():
   except ValidationError as e:
     return abort(400)
 
+  resp_box = ""
   for i in range(len(datas)):
     data = datas[i].strip()
-
     if data == "" or len(data) > 100:
       datas[i] = "None"
+      resp_box += f"{data}\n"
       continue
 
-    datas[i] = request_llm(data, courses)
-  return jsonify({"result": datas})
+    resp = request_llm(data, courses)
+    datas[i] = resp
+    if resp != "None":
+      resp_box += f"{data} -> {resp}\n"
+    else:
+      resp_box += f"{data}\n"
+  return jsonify({"result": datas, "resp_box": resp_box})
     
 
 
