@@ -50,29 +50,45 @@ model = genai.GenerativeModel(
   system_instruction="Classify the given homework into one of the specified courses.\nInput:\ninput: A string describing the homework (e.g., \"基礎電學直流電壓P23\").\ncourse: A list of course names to classify into (e.g., [\"數學\", \"國文\", \"基礎電學\", \"歷史\"]).\nOutput:\nProvide a JSON object indicating the most relevant course for the given homework or \"None\".\nInput: {\"input\":\"基礎電學直流電壓P23\",\"course\":[\"數學\",\"國文\",\"基礎電學\",\"歷史\"]}  \nOutput: {\"course_type\":\"基礎電學\"}",
 )
 
-def request_llm(data, courses):
+def request_llm(data, courses, schedule):
   chat_session = model.start_chat(history=[],)
   request_json = {
       "input": data,
       "course": courses
   }
 
-  response = json.loads(chat_session.send_message(str(request_json)).text).get("course_type","None")
-  if response not in courses:
-    response = "None"
-  return response
+  course = json.loads(chat_session.send_message(str(request_json)).text).get("course_type","None")
+  if course not in courses:
+    course = ""
+  if course != "":
+    return_ = calculated_next_time(schedule, course)
+  else:
+    return_ = ""
+  return return_
+
+
+def calculated_next_time(schedule, course):
+  weekday = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
+  for i in range(len(schedule)):
+    for j in range(len(schedule[i])):
+      if course in schedule[i][j]:
+        return f"{weekday[i]}"
+  return ""
 
 class HomeworkRequest(BaseModel):
     line_data: str
     courses: list[str]
+    schedule: list[list[str]]
+
 
 @app.route("/get-homework-type", methods=["POST"])
 @limiter.limit("1 per second")
 def get_homework_type():
   try:
-    input_data = HomeworkRequest(line_data=request.json["line_data"], courses=request.json["courses"])
+    input_data = HomeworkRequest(line_data=request.json["line_data"], courses=request.json["courses"], schedule=request.json["schedule"])
     datas = input_data.line_data.split("\n")
     courses = input_data.courses
+    schedule = input_data.schedule
   except ValidationError as e:
     return abort(400)
 
@@ -80,13 +96,14 @@ def get_homework_type():
   for i in range(len(datas)):
     data = datas[i].strip()
     if data == "" or len(data) > 100:
-      datas[i] = "None"
+      datas[i] = ""
       resp_box += f"{data}\n"
       continue
 
-    resp = request_llm(data, courses)
+    resp = request_llm(data, courses, schedule)
     datas[i] = resp
-    if resp != "None":
+
+    if resp != "":
       resp_box += f"{data} -> {resp}\n"
     else:
       resp_box += f"{data}\n"
