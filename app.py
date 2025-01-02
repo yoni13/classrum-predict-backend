@@ -3,6 +3,7 @@ from flask_limiter import Limiter
 import json
 import google.generativeai as genai
 from google.ai.generativelanguage_v1beta.types import content
+import google.api_core.exceptions
 import os
 from pydantic import BaseModel, ValidationError
 
@@ -50,45 +51,65 @@ model = genai.GenerativeModel(
   system_instruction="Classify the given homework into one of the specified courses.\nInput:\ninput: A string describing the homework (e.g., \"基礎電學直流電壓P23\").\ncourse: A list of course names to classify into (e.g., [\"數學\", \"國文\", \"基礎電學\", \"歷史\"]).\nOutput:\nProvide a JSON object indicating the most relevant course for the given homework or \"None\".\nInput: {\"input\":\"基礎電學直流電壓P23\",\"course\":[\"數學\",\"國文\",\"基礎電學\",\"歷史\"]}  \nOutput: {\"course_type\":\"基礎電學\"}",
 )
 
-def request_llm(data, courses, schedule):
+def request_llm(data, courses, schedule, weekday):
   chat_session = model.start_chat(history=[],)
   request_json = {
       "input": data,
       "course": courses
   }
 
-  course = json.loads(chat_session.send_message(str(request_json)).text).get("course_type","None")
+  try:
+    course = json.loads(chat_session.send_message(str(request_json)).text).get("course_type","None")
+  except google.api_core.exceptions.ResourceExhausted:
+    return abort(429)
+  
   if course not in courses:
     course = ""
   if course != "":
-    return_ = calculated_next_time(schedule, course)
+    return_ = calculated_next_time(schedule, course, weekday)
   else:
     return_ = ""
   return return_
 
 
-def calculated_next_time(schedule, course):
-  weekday = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
-  for i in range(len(schedule)):
-    for j in range(len(schedule[i])):
-      if course in schedule[i][j]:
-        return f"{weekday[i]}"
+def calculated_next_time(schedule, course, weekday):
+  weekdayChinese = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
+  # weekday start from 1 in app inventor, but since we are counting from next day, we are keeping it.
+  try:
+    for i in range(len(schedule)):
+      # print(i+weekday)
+      if course in schedule[i+weekday]:
+        return weekdayChinese[i+weekday]
+  except IndexError:
+    # print("not found in remaining days")
+    for i in range(len(schedule)):
+      if course in schedule[i]:
+        return weekdayChinese[i]
+  
   return ""
 
 class HomeworkRequest(BaseModel):
     line_data: str
     courses: list[str]
     schedule: list[list[str]]
-
+    weekday: int
 
 @app.route("/get-homework-type", methods=["POST"])
 @limiter.limit("1 per second")
 def get_homework_type():
   try:
-    input_data = HomeworkRequest(line_data=request.json["line_data"], courses=request.json["courses"], schedule=request.json["schedule"])
+    input_data = HomeworkRequest(line_data=request.json["line_data"], courses=request.json["courses"], schedule=request.json["schedule"], weekday=request.json["weekday"])
+
     datas = input_data.line_data.split("\n")
     courses = input_data.courses
     schedule = input_data.schedule
+    weekday = input_data.weekday
+    if weekday <= 0 or weekday > len(schedule):
+      return abort(400)
+
+  except KeyError:# backward update notice
+    return jsonify({"resp_box": "Please update your client to continue."}), 400
+
   except ValidationError as e:
     return abort(400)
 
@@ -100,7 +121,7 @@ def get_homework_type():
       resp_box += f"{data}\n"
       continue
 
-    resp = request_llm(data, courses, schedule)
+    resp = request_llm(data, courses, schedule, weekday)
     datas[i] = resp
 
     if resp != "":
