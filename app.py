@@ -77,7 +77,7 @@ def calculated_next_time(schedule, course, weekday):
   # weekday start from 1 in app inventor, but since we are counting from next day, we are keeping it.
   try:
     for i in range(len(schedule)):
-      # print(i+weekday)
+      # print(schedule[i+weekday])
       if course in schedule[i+weekday]:
         return weekdayChinese[i+weekday]
   except IndexError:
@@ -103,9 +103,15 @@ def get_homework_type():
     datas = input_data.line_data.split("\n")
     courses = input_data.courses
     schedule = input_data.schedule
-    weekday = input_data.weekday
+    weekday = input_data.weekday # start from 1 and 1 is Sunday
+
     if weekday <= 0 or weekday > len(schedule):
       return abort(400)
+    
+    if weekday == 1:
+      weekday = 7
+    else:
+      weekday -= 1
 
   except KeyError:# backward update notice
     return jsonify({"resp_box": "Please update your client to continue."}), 400
